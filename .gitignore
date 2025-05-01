@@ -1,0 +1,13 @@
+fvenv/
+__pycache__/
+pytest_cache/
+*.pyc
+*.pyo
+__pycache__
+.env
+instance/
+*.db
+*.pytest_cache/
+*.coverage
+.idea/
+pydantic.log
