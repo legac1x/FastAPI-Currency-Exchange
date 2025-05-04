@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 
 class CurrencyConvert(BaseModel):
     from_currency: str | None = None
@@ -15,10 +15,10 @@ class CurrencyExchangeHistoryItem(BaseModel):
     to_currency: str
     time_currency: datetime
 
-    class Config:
-        json_encoders = {
-            datetime: lambda x: x.strftime("%d.%m.%Y %H:%M")
-        }
+    @field_serializer("time_currency")
+    def serialize_dates(self, t: datetime, _info) -> str:
+        return t.strftime("%d.%m.%Y %H:%M")
+
 
 class CurrencyExchangeHistory(BaseModel):
     username: str
