@@ -11,7 +11,7 @@ sys.path.append(os.path.join(sys.path[0], 'app'))
 
 from app.core.config import settings
 from app.db.database import Base
-from app.db.models import User
+from app.db.models import User, ExchangeHistory
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

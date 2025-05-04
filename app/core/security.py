@@ -50,7 +50,7 @@ async def create_access_token(data: dict, expires_delta: timedelta | None = None
     token = jwt.encode(to_encode, key=SECURITY_KEY, algorithm=ALGORITHM)
     return token
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_schema)], session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def get_current_user(token: Annotated[str, Depends(oauth2_schema)], session: Annotated[AsyncSession, Depends(get_async_session)]) -> User:
     try:
         payload = jwt.decode(token, SECURITY_KEY, algorithms=[ALGORITHM])
         username = payload.get('sub')
@@ -60,7 +60,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_schema)], sessio
                 detail="Invalid username or password"
             )
         user = await get_user_from_db(username, session)
-        return UserOut(username=user.username, email=user.email)
+        return user
     except InvalidTokenError:
         raise HTTPException(
             status_code=401,
