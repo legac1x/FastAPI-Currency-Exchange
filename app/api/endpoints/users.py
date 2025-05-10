@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Body, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from app.api.schemas.user import UserRegister
 from app.db.database import get_async_session
@@ -15,7 +15,7 @@ user_router = APIRouter(prefix="/auth", tags=["User"])
 
 @user_router.post("/register")
 async def register(form_data: Annotated[UserRegister, Body()], session: Annotated[AsyncSession, Depends(get_async_session)]):
-    result = await session.execute(select(User).where(User.username == form_data.username))
+    result = await session.execute(select(User.username, User.email).where(or_(User.username == form_data.username, User.email == form_data.email)))
     user = result.scalar_one_or_none()
     if user:
         raise HTTPException(
