@@ -8,9 +8,9 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str]
+    username: Mapped[str] = mapped_column(unique=True)
     password: Mapped[str]
-    email: Mapped[str]
+    email: Mapped[str] = mapped_column(unique=True)
     exchistory: Mapped[list["ExchangeHistory"]] = relationship("ExchangeHistory", back_populates="user")
 
 class ExchangeHistory(Base):
