@@ -1,4 +1,3 @@
-# from sqlalchemy import NullPool # Использовать только при тестах!
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.asyncio import  async_sessionmaker, create_async_engine, AsyncSession
 
@@ -6,7 +5,7 @@ from app.core.config import settings
 
 DATABASE_URL = settings.SYNC_DATABASE_URL
 
-engine = create_async_engine(DATABASE_URL) # create_async_engine(DATABASE_URL, poolclass=NullPool) использовть только при тестах!
+engine = create_async_engine(DATABASE_URL)
 
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession)
 
