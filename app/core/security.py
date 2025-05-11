@@ -17,9 +17,9 @@ from app.db.models import User
 oauth2_schema = OAuth2PasswordBearer(tokenUrl="/auth/token")
 SECURITY_KEY = settings.secret_key_env
 ALGORITHM = settings.algorithm_env
-EXPIRES_TOKEN_MINUTES = 30
+EXPIRES_ACCESS_TOKEN_MINUTES = 30
+EXPIRES_REFRESH_TOKEN_DAYS = 30
 pwd_context = CryptContext(schemes=settings.schemes_env, deprecated="auto")
-
 
 async def get_hashed_password(password):
     return pwd_context.hash(password)
@@ -40,25 +40,60 @@ async def authenticate_user(username: str, password: str, session: AsyncSession)
         raise HTTPException(status_code=401, detail="Invalid username or password")
     return user
 
-async def create_access_token(data: dict, expires_delta: timedelta | None = None):
+async def create_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=EXPIRES_TOKEN_MINUTES)
+    expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({'exp': expire})
     token = jwt.encode(to_encode, key=SECURITY_KEY, algorithm=ALGORITHM)
     return token
+
+async def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    return await create_token(data, expires_delta=timedelta(minutes=EXPIRES_ACCESS_TOKEN_MINUTES))
+
+async def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
+    return await create_token(data, expires_delta=timedelta(days=EXPIRES_REFRESH_TOKEN_DAYS))
+
+async def refresh_access_token(refresh_token: str, session: AsyncSession):
+    try:
+        payload = jwt.decode(refresh_token, SECURITY_KEY, algorithms=[ALGORITHM])
+        username = payload.get('sub')
+        if not username:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid refresh token"
+            )
+        expire = payload.get("exp")
+        expire = datetime.fromtimestamp(expire, tz=timezone.utc)
+        if expire <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=401,
+                detail="Invalid refresh token")
+        user = await get_user_from_db(username, session)
+        new_access_token = await create_access_token({"sub": user.username})
+        return new_access_token
+    except InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid refresh token"
+        )
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_schema)], session: Annotated[AsyncSession, Depends(get_async_session)]) -> User:
     try:
         payload = jwt.decode(token, SECURITY_KEY, algorithms=[ALGORITHM])
         username = payload.get('sub')
+        expire = payload.get('exp')
+
+        if expire <= datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=401,
+                detail="Token has expired. You have to refresh your token."
+            )
+
         if not username:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid username or password"
             )
+
         user = await get_user_from_db(username, session)
         return user
     except InvalidTokenError:
