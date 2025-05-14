@@ -1,4 +1,9 @@
+from datetime import datetime, timezone, timedelta
+
 import jwt
+from unittest.mock import patch
+
+from app.core.security import create_access_token, create_refresh_token
 from app.core.config import settings
 
 async def test_register_user_success(client):
@@ -67,7 +72,6 @@ async def test_protected_route_invalid_token(client):
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid username or password"
 
-
 async def test_login_user_wrong_password(client):
     response = await client.post("/auth/token", data={
         "username": "test1",
@@ -85,3 +89,33 @@ async def test_jwt_token_contents(client):
     token = response.json()["access_token"]
     decode = jwt.decode(token, key=settings.secret_key_env, algorithms=[settings.ALGORITHM])
     assert decode["sub"] == "test1"
+
+async def test_access_token_expired(client):
+    token = await create_access_token({"sub": "test1"})
+
+    future_time = datetime.now(timezone.utc) + timedelta(minutes=32)
+
+    with patch("app.core.security.datetime") as mock_datetime:
+        mock_datetime.now.return_value = future_time
+        mock_datetime.fromtimestamp = datetime.fromtimestamp
+        mock_datetime.timezone = timezone
+
+        response = await client.get("/auth/users/me", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Token has expired. You have to refresh your token."
+
+async def test_refresh_token_expired(client):
+    token = await create_refresh_token({"sub": "test1"})
+
+    future_time = datetime.now(timezone.utc) + timedelta(days=31)
+
+    client.cookies.set("refresh_token", token)
+
+    with patch("app.core.security.datetime") as mock_datetime:
+        mock_datetime.now.return_value = future_time
+        mock_datetime.fromtimestamp = datetime.fromtimestamp
+        mock_datetime.timezone = timezone
+
+        response = await client.post("/auth/refresh")
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid refresh token"

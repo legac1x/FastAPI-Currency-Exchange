@@ -40,18 +40,19 @@ async def authenticate_user(username: str, password: str, session: AsyncSession)
         raise HTTPException(status_code=401, detail="Invalid username or password")
     return user
 
-async def create_token(data: dict, expires_delta: timedelta | None = None):
+async def create_token(data: dict, token_type: str, expires_delta: timedelta | None = None):
     to_encode = data.copy()
+    to_encode.update({"type": token_type})
     expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({'exp': expire})
     token = jwt.encode(to_encode, key=SECURITY_KEY, algorithm=ALGORITHM)
     return token
 
 async def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    return await create_token(data, expires_delta=timedelta(minutes=EXPIRES_ACCESS_TOKEN_MINUTES))
+    return await create_token(data, token_type="access", expires_delta=timedelta(minutes=EXPIRES_ACCESS_TOKEN_MINUTES))
 
 async def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
-    return await create_token(data, expires_delta=timedelta(days=EXPIRES_REFRESH_TOKEN_DAYS))
+    return await create_token(data, token_type="refresh", expires_delta=timedelta(days=EXPIRES_REFRESH_TOKEN_DAYS))
 
 async def refresh_access_token(refresh_token: str, session: AsyncSession):
     try:
@@ -62,8 +63,7 @@ async def refresh_access_token(refresh_token: str, session: AsyncSession):
                 status_code=401,
                 detail="Invalid refresh token"
             )
-        expire = payload.get("exp")
-        expire = datetime.fromtimestamp(expire, tz=timezone.utc)
+        expire = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
         if expire <= datetime.now(timezone.utc):
             raise HTTPException(status_code=401,
                 detail="Invalid refresh token")
@@ -80,8 +80,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_schema)], sessio
     try:
         payload = jwt.decode(token, SECURITY_KEY, algorithms=[ALGORITHM])
         username = payload.get('sub')
-        expire = payload.get('exp')
-
+        expire = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
         if expire <= datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=401,
