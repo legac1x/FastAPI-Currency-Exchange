@@ -193,13 +193,6 @@ FastAPI Currency Exchange — учебный проект, созданный н
 | GET   | `/currency/history`    | История операций текущего пользователя    |
 | GET   | `/currency/export`     | Экспорт истории в файл (CSV)        |
 
----
-
-## Автор
-
-[github.com/legac1x](https://github.com/legac1x)
-
-Почта: zaharshashev2@gmail.com
 
 ---
 
